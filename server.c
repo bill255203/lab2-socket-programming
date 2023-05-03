@@ -9,11 +9,6 @@
 #include "header.h"
 #include <netinet/in.h>
 
-void serverfunction(int client_socket) {
-    // Send a message to the client
-    char message[] = "Hi, I'm server {109070032}";
-    send(client_socket, message, strlen(message), 0);
-}
 
 int main(int argc , char *argv[]){
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -35,11 +30,8 @@ int main(int argc , char *argv[]){
     char* message = "Hi, I'm server 109070032";
     send(client_socket, message, strlen(message), 0);
 
-    while(1) {
-        int client_socket = accept(server_socket, NULL, NULL);
-        serverfunction(client_socket);
-        close(client_socket);
-    }
+    //call serverfunction to create connection
+    serverfunction(client_socket);
     close(server_socket);
     return 0;
 
