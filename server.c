@@ -10,6 +10,18 @@
 #include <netinet/in.h>
 
 
+void serverfunction(int clientfd) {
+    //Pass the client socket fd into serverfuntion()
+    int sockfd = clientfd;
+    Segment s;
+    while (1) {
+        //Receive the data from the client
+        receivedata(sockfd, &s);
+        //Send the data to the client
+        sendheader(sockfd, s.header);
+    }
+}
+
 int main(int argc , char *argv[]){
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
 
