@@ -7,77 +7,6 @@
 #include <arpa/inet.h>
 #include "header.h"
 #include <netinet/in.h>
-
-void receivedata(int sockfd, Segment* s){
-    //Receive data from the server and store it in the segment structure
-    int n = recv(sockfd, s->header, 20, 0);
-    s->header[n] = '\0';
-    n = recv(sockfd, s->pseudoheader, 12, 0);
-    s->pseudoheader[n] = '\0';
-    n = recv(sockfd, s->l3info.SourceIpv4, 16, 0);
-    s->l3info.SourceIpv4[n] = '\0';
-    n = recv(sockfd, s->l3info.DesIpv4, 16, 0);
-    s->l3info.DesIpv4[n] = '\0';
-    n = recv(sockfd, &s->l3info.protocol, 4, 0);
-    s->l3info.protocol = ntohl(s->l3info.protocol);
-    n = recv(sockfd, &s->l4info.AckNum, 4, 0);
-    s->l4info.AckNum = ntohl(s->l4info.AckNum);
-    n = recv(sockfd, &s->l4info.SeqNum, 4, 0);
-    s->l4info.SeqNum = ntohl(s->l4info.SeqNum);
-    n = recv(sockfd, &s->l4info.SourcePort, 4, 0);
-    s->l4info.SourcePort = ntohl(s->l4info.SourcePort);
-    n = recv(sockfd, &s->l4info.DesPort, 4, 0);
-    s->l4info.DesPort = ntohl(s->l4info.DesPort);
-    n = recv(sockfd, &s->l4info.Flag, 4, 0);
-    s->l4info.Flag = ntohl(s->l4info.Flag);
-    n = recv(sockfd, &s->l4info.HeaderLen, 4, 0);
-    s->l4info.HeaderLen = ntohl(s->l4info.HeaderLen);
-    n = recv(sockfd, &s->l4info.WindowSize, 4, 0);
-    s->l4info.WindowSize = ntohl(s->l4info.WindowSize);
-    printf("%s\n", s->header);
-    printf("%s\n", s->pseudoheader);
-    printf("%s\n", s->l3info.SourceIpv4);
-    printf("%s\n", s->l3info.DesIpv4);
-    printf("%d\n", s->l3info.protocol);
-    printf("%d\n", s->l4info.AckNum);
-    printf("%d\n", s->l4info.SeqNum);
-    printf("%d\n", s->l4info.SourcePort);
-    printf("%d\n", s->l4info.DesPort);
-    printf("%d\n", s->l4info.Flag);
-    printf("%d\n", s->l4info.HeaderLen);
-    printf("%d\n", s->l4info.WindowSize);
-    printf("\n");
-}
-
-char* myheadercreater(Segment* s){
-    //Write your own function to create header.(All information is in the Segment instance.)
-    char* header = (char*)malloc(20);
-    strcpy(header, s->header);
-    char* pseudoheader = (char*)malloc(12);
-    strcpy(pseudoheader, s->pseudoheader);
-    char* sourceipv4 = (char*)malloc(16);
-    strcpy(sourceipv4, s->l3info.SourceIpv4);
-    char* destipv4 = (char*)malloc(16);
-    strcpy(destipv4, s->l3info.DesIpv4);
-    char* protocol = (char*)malloc(4);
-    strcpy(protocol, (char*)&s->l3info.protocol);
-    char* acknum = (char*)malloc(4);
-    strcpy(acknum, (char*)&s->l4info.AckNum);
-    char* seqnum = (char*)malloc(4);
-    return header;
-}
-
-void sendheader(int sockfd, char* header){
-    //send the header string to the server
-    int n = send(sockfd, header, strlen(header), 0);
-    if (n < 0) {
-        perror("send");
-        exit(1);
-    }
-    printf("%s\n", header);
-    printf("\n");
-}
-
 #include <stdint.h>
 #include <string.h>
 
@@ -133,6 +62,25 @@ uint16_t calc_segment_checksum(Segment *seg) {
     memcpy(buf+14, seg->header, 20);
     return checksum(buf, 34);
 }
+
+char* myheadercreater(Segment* s){
+    //Write your own function to create header.(All information is in the Segment instance.)
+    char* header = (char*)malloc(20);
+    strcpy(header, s->header);
+    char* pseudoheader = (char*)malloc(12);
+    strcpy(pseudoheader, s->pseudoheader);
+    char* sourceipv4 = (char*)malloc(16);
+    strcpy(sourceipv4, s->l3info.SourceIpv4);
+    char* destipv4 = (char*)malloc(16);
+    strcpy(destipv4, s->l3info.DesIpv4);
+    char* protocol = (char*)malloc(4);
+    strcpy(protocol, (char*)&s->l3info.protocol);
+    char* acknum = (char*)malloc(4);
+    strcpy(acknum, (char*)&s->l4info.AckNum);
+    char* seqnum = (char*)malloc(4);
+    return header;
+}
+
 int main(int argc , char *argv[])
 {   
     int client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -143,10 +91,6 @@ int main(int argc , char *argv[])
     server_address.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     connect(client_socket, (struct sockaddr*)&server_address, sizeof(server_address));
-    
-    // Send a message to the server
-    char message[] = "Hello, server!";
-    send(client_socket, message, strlen(message), 0);
 
     // Receive a message from the server
     char buffer[1024];
@@ -154,8 +98,31 @@ int main(int argc , char *argv[])
     buffer[bytes_received] = '\0';
     printf("Received message: %s\n", buffer);
 
-    //uint16_t checksum = calc_segment_checksum(&seg);
-    //printf("Checksum = 0x%04x\n", checksum);
+    Segment s;
+    // pass in parameters to call receivedata function
+    receivedata(client_socket, &s);
+    //print out every thing of segment s
+    printf("Source IP: %s\n", s.l3info.SourceIpv4);
+    printf("Destination IP: %s\n", s.l3info.DesIpv4);
+    printf("Source Port: %d\n", s.l4info.SourcePort);
+    printf("Destination Port: %d\n", s.l4info.DesPort);
+    printf("Protocol: %d\n", s.l3info.protocol);
+    printf("AckNum: %d\n", s.l4info.AckNum);
+    printf("SeqNum: %d\n", s.l4info.SeqNum);
+    printf("Header: %s\n", s.header);
+    printf("Pseudoheader: %s\n", s.pseudoheader);
+    //printf("Checksum: %d\n", s.checksum);
+
+    // calculate the checksum
+    // uint16_t checksum = calc_segment_checksum(&s);
+    //print checksum
+    // printf("Checksum: %d\n", checksum);
+
+    //create a header by myheadercreator function
+    char* header = myheadercreater(&s);
+
+    //pass in parameters to call sendheader function
+    sendheader(client_socket,header);
 
     close(client_socket);
     return 0;
@@ -206,11 +173,5 @@ int main(int argc , char *argv[])
     //                                                       //
     // Then you will see the result.                         //  
     ///////////////////////////////////////////////////////////
-    
-
-    //Segment s;
-    //receivedata(socket_fd,&s);
-    //sendheader(socket_fd,s.header);
-    //close(socket_fd);
 }
 
