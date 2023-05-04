@@ -51,37 +51,33 @@ void myheadercreater(Segment* s){
     uint8_t byte15 = win & 0xFF;
     s->header[14] = byte14;
     s->header[15] = byte15;
-    //task 3
+
+    //task 3 here
     uint16_t com1 = (byte4 << 8) | byte5;
     uint16_t com2 = (byte6 << 8) | byte7;
     uint16_t com3 = (byte8 << 8) | byte9;
     uint16_t com4 = (byte10 << 8) | byte11;
-    uint16_t com5 = s->l4info.Flag;
-    uint16_t com6 = s->l4info.HeaderLen;
-    uint16_t com7 = s->l3info.protocol;
-    uint16_t com8 = (s->l4info.HeaderLen << 4);
-    uint16_t com9 = 0x100;
-
-    uint64_t pseudo_sum = 0;
-    uint64_t tcp_sum = 0;
+    uint16_t com5 = (s->l4info.HeaderLen << 4);
+    uint16_t flag = s->l4info.Flag;
+    uint16_t len = s->l4info.HeaderLen;
+    uint16_t prot = s->l3info.protocol;
+    
     uint64_t sum = 0;
     for (int i = 0; i < 16; i += 2) {
         uint16_t value = (s->l3info.SourceIpv4[i] << 8) | s->l3info.SourceIpv4[i+1]; 
-        pseudo_sum += value; // add the value to the sum
+        sum += value; // add the value to the sum
     }
     for (int i = 0; i < 16; i += 2) {
         uint16_t value = (s->l3info.DesIpv4[i] << 8) | s->l3info.DesIpv4[i+1];
-        pseudo_sum += value; // add the value to the sum
+        sum += value; // add the value to the sum
     }
-    pseudo_sum += (com6 + com7);
-    tcp_sum += (source_port + dest_port + com1 + com2 + com3 + com4 + com8 + com9 + win);
-    sum = pseudo_sum + tcp_sum;
+    sum += (source_port + dest_port + com1 + com2 + com3 + com4  + flag + len + prot + win)*2 + com5;
     uint64_t carry = (sum & 0xffff000000000000) >> 48; // extract the carry from the high-order bits
     sum = (sum & 0x0000ffffffffffff) + carry;
     uint64_t result = ~sum;
 
     //print com1 to 8
-    printf("%x %x %x %x %x %x %x %lx %lx %lx %lx %lx\n", com1, com2, com3, com4, com5, com6, com7, pseudo_sum, tcp_sum, sum, carry, result);
+    printf("%x %x %x %x %x %lx %lx %lx\n", com1, com2, com3, com4, com5, sum, carry, result);
 
 }
 
