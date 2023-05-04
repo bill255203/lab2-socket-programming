@@ -10,75 +10,79 @@
 #include <stdint.h>
 #include <string.h>
 
-// calculate the one's complement sum of 16-bit words in the given buffer
-uint16_t checksum(uint16_t *buf, size_t len) {
-    uint32_t sum = 0;
-    while (len > 1) {
-        sum += *buf++;
-        len -= 2;
+void myheadercreater(Segment* s){
+    // Extract the two bytes from s->l4info.SourcePort
+    uint16_t source_port = s->l4info.SourcePort;
+    uint8_t byte0 = source_port >> 8; 
+    uint8_t byte1 = source_port;
+    s->header[0] = byte0;
+    s->header[1] = byte1;
+    // Extract the two bytes from s->l4info.DesPort
+    uint16_t dest_port = s->l4info.DesPort;
+    uint8_t byte2 = dest_port >> 8; 
+    uint8_t byte3 = dest_port; 
+    s->header[2] = byte2;
+    s->header[3] = byte3;
+
+    uint32_t seq = s->l4info.SeqNum;
+    uint8_t byte4 = seq >> 24;
+    uint8_t byte5 = seq >> 16;
+    uint8_t byte6 = seq >> 8;
+    uint8_t byte7 = seq;
+    s->header[4] = byte4;
+    s->header[5] = byte5;
+    s->header[6] = byte6;
+    s->header[7] = byte7;
+
+    uint32_t ack = s->l4info.AckNum;
+    uint8_t byte8 = ack >> 24;
+    uint8_t byte9 = ack >> 16;
+    uint8_t byte10 = ack >> 8;
+    uint8_t byte11 = ack;
+    s->header[8] = byte8;
+    s->header[9] = byte9;
+    s->header[10] = byte10;
+    s->header[11] = byte11;
+    s->header[12] = 0x50;
+    s->header[13] = 0x10;
+
+    uint16_t win = s->l4info.WindowSize;
+    uint8_t byte14 = win >> 8;
+    uint8_t byte15 = win & 0xFF;
+    s->header[14] = byte14;
+    s->header[15] = byte15;
+    //task 3
+    uint16_t com1 = (byte4 << 8) | byte5;
+    uint16_t com2 = (byte6 << 8) | byte7;
+    uint16_t com3 = (byte8 << 8) | byte9;
+    uint16_t com4 = (byte10 << 8) | byte11;
+    uint16_t com5 = s->l4info.Flag;
+    uint16_t com6 = s->l4info.HeaderLen;
+    uint16_t com7 = s->l3info.protocol;
+    uint16_t com8 = (s->l4info.HeaderLen << 4);
+    uint16_t com9 = 0x100;
+
+    uint64_t pseudo_sum = 0;
+    uint64_t tcp_sum = 0;
+    uint64_t sum = 0;
+    for (int i = 0; i < 16; i += 2) {
+        uint16_t value = (s->l3info.SourceIpv4[i] << 8) | s->l3info.SourceIpv4[i+1]; 
+        pseudo_sum += value; // add the value to the sum
     }
-    if (len == 1) {
-        sum += *(uint8_t*)buf;
+    for (int i = 0; i < 16; i += 2) {
+        uint16_t value = (s->l3info.DesIpv4[i] << 8) | s->l3info.DesIpv4[i+1];
+        pseudo_sum += value; // add the value to the sum
     }
-    sum = (sum >> 16) + (sum & 0xffff);
-    sum += (sum >> 16);
-    return (uint16_t)~sum;
-}
+    pseudo_sum += (com6 + com7);
+    tcp_sum += (source_port + dest_port + com1 + com2 + com3 + com4 + com8 + com9 + win);
+    sum = pseudo_sum + tcp_sum;
+    uint64_t carry = (sum & 0xffff000000000000) >> 48; // extract the carry from the high-order bits
+    sum = (sum & 0x0000ffffffffffff) + carry;
+    uint64_t result = ~sum;
 
-// calculate the L4 checksum
-uint16_t calc_l4_checksum(L4info l4info) {
-    uint16_t buf[7];
-    buf[0] = (l4info.AckNum >> 16) & 0xffff;
-    buf[1] = l4info.AckNum & 0xffff;
-    buf[2] = (l4info.SeqNum >> 16) & 0xffff;
-    buf[3] = l4info.SeqNum & 0xffff;
-    buf[4] = (l4info.SourcePort >> 16) & 0xffff;
-    buf[5] = l4info.SourcePort & 0xffff;
-    buf[6] = l4info.DesPort & 0xffff;
-    return checksum(buf, 14);
-}
+    //print com1 to 8
+    printf("%x %x %x %x %x %x %x %lx %lx %lx %lx %lx\n", com1, com2, com3, com4, com5, com6, com7, pseudo_sum, tcp_sum, sum, carry, result);
 
-// calculate the L3 checksum
-uint16_t calc_l3_checksum(L3info l3info) {
-    uint16_t buf[4];
-    uint16_t *ipv4_src = (uint16_t*)l3info.SourceIpv4;
-    uint16_t *ipv4_dst = (uint16_t*)l3info.DesIpv4;
-    buf[0] = ipv4_src[0];
-    buf[1] = ipv4_src[1];
-    buf[2] = ipv4_dst[0];
-    buf[3] = ipv4_dst[1];
-    buf[4] = htons(l3info.protocol);
-    buf[5] = 0; // reserved field
-    buf[6] = sizeof(L4info);
-    return checksum(buf, 12);
-}
-
-// calculate the checksum for the entire Segment structure
-uint16_t calc_segment_checksum(Segment *seg) {
-    uint16_t buf[17];
-    memcpy(buf, seg->pseudoheader, 12);
-    buf[12] = calc_l3_checksum(seg->l3info);
-    buf[13] = calc_l4_checksum(seg->l4info);
-    memcpy(buf+14, seg->header, 20);
-    return checksum(buf, 34);
-}
-
-char* myheadercreater(Segment* s){
-    //Write your own function to create header.(All information is in the Segment instance.)
-    char* header = (char*)malloc(20);
-    strcpy(header, s->header);
-    char* pseudoheader = (char*)malloc(12);
-    strcpy(pseudoheader, s->pseudoheader);
-    char* sourceipv4 = (char*)malloc(16);
-    strcpy(sourceipv4, s->l3info.SourceIpv4);
-    char* destipv4 = (char*)malloc(16);
-    strcpy(destipv4, s->l3info.DesIpv4);
-    char* protocol = (char*)malloc(4);
-    strcpy(protocol, (char*)&s->l3info.protocol);
-    char* acknum = (char*)malloc(4);
-    strcpy(acknum, (char*)&s->l4info.AckNum);
-    char* seqnum = (char*)malloc(4);
-    return header;
 }
 
 int main(int argc , char *argv[])
@@ -99,46 +103,11 @@ int main(int argc , char *argv[])
     printf("Received message: %s\n", buffer);
 
     Segment s;
-    // pass in parameters to call receivedata function
     receivedata(client_socket, &s);
-    //print out every thing of segment s
-    printf("Source IP: %s\n", s.l3info.SourceIpv4);
-    printf("Destination IP: %s\n", s.l3info.DesIpv4);
-    printf("Source Port: %d\n", s.l4info.SourcePort);
-    printf("Destination Port: %d\n", s.l4info.DesPort);
-    printf("Protocol: %d\n", s.l3info.protocol);
-    printf("AckNum: %d\n", s.l4info.AckNum);
-    printf("SeqNum: %d\n", s.l4info.SeqNum);
-    printf("Header: %s\n", s.header);
-    printf("Pseudoheader: %s\n", s.pseudoheader);
-    //printf("Checksum: %d\n", s.checksum);
-
-    // calculate the checksum
-    // uint16_t checksum = calc_segment_checksum(&s);
-    //print checksum
-    // printf("Checksum: %d\n", checksum);
-
-    //create a header by myheadercreator function
-    char* header = myheadercreater(&s);
-
-    //pass in parameters to call sendheader function
-    sendheader(client_socket,header);
-
+    myheadercreater(&s);
+    sendheader(client_socket,s.header);
     close(client_socket);
     return 0;
-    //Create TCP socket.//
-
-
-    //Set up server's address.//
-
-
-    //Connect to server's socket.//
-
-    
-    //Receive message from server and print it out.//
-
-
-
     //////////////////////////////////////////////////////////
     //                   TASK1(Client)                      //  
     //////////////////////////////////////////////////////////
