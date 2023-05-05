@@ -74,21 +74,21 @@ void myheadercreater(Segment* s){
     }
     uint16_t k1 = (octet_values[0] << 8) | octet_values[1];
     uint16_t k2 = (octet_values[2] << 8) | octet_values[3];
-    
+    printf("%x %x\n",k1,k2);
     
     printf("%s\n",s->l3info.DesIpv4);
-    char* octe = strtok(s->l3info.DesIpv4, ".");
-    int octe_values[4]; // Array to store integer values of octets
-    int j = 0;
-    while (octe != NULL && j < 4) {
-        octe_values[i] = atoi(octe);
-        octe = strtok(NULL, ".");
-        j++;
+    octet = strtok(s->l3info.DesIpv4, ".");
+    i = 0;
+    while (octet != NULL && i < 4) {
+        octet_values[i] = atoi(octet);
+        octet = strtok(NULL, ".");
+        i++;
     }
-    uint16_t k3 = (octe_values[0] << 8) | octe_values[1];
-    uint16_t k4 = (octe_values[2] << 8) | octe_values[3];
-    printf("%x %x %x %x\n",k1,k2,k3,k4);
-    sum += source_port + dest_port + com1 + com2 + com3 + com4  + flag + len + prot + win + 0x14;
+    uint16_t k3 = (octet_values[0] << 8) | octet_values[1];
+    uint16_t k4 = (octet_values[2] << 8) | octet_values[3];
+    printf("%x %x\n",k3,k4);
+
+    sum += k1+k2+k3+k4+prot+0x1c+ source_port + dest_port + com1 + com2 + com3 + com4  + head_l + flag + win;
 
     printf("%lx\n", sum);
     uint8_t carry = sum >> 16;
@@ -101,7 +101,7 @@ void myheadercreater(Segment* s){
     s->header[17] = result;
 
     //print com1 to 8
-    printf("%x %x %x %x %x %x\n", com1, com2, com3, com4, head_l, result);
+    printf("%x %x %x %x %x %x\n", com1, com2, com3, com4, flag, result);
 }
 
 int main(int argc , char *argv[])
