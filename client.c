@@ -13,7 +13,7 @@
 void myheadercreater(Segment* s){
     // Extract the two bytes from s->l4info.SourcePort
     uint16_t source_port = s->l4info.SourcePort;
-    uint8_t byte0 = source_port >> 8; 
+    uint8_t byte0 = source_port >> 8;
     uint8_t byte1 = source_port;
     s->header[0] = byte0;
     s->header[1] = byte1;
@@ -48,7 +48,7 @@ void myheadercreater(Segment* s){
 
     uint16_t win = s->l4info.WindowSize;
     uint8_t byte14 = win >> 8;
-    uint8_t byte15 = win & 0xFF;
+    uint8_t byte15 = win;
     s->header[14] = byte14;
     s->header[15] = byte15;
 
@@ -57,28 +57,51 @@ void myheadercreater(Segment* s){
     uint16_t com2 = (byte6 << 8) | byte7;
     uint16_t com3 = (byte8 << 8) | byte9;
     uint16_t com4 = (byte10 << 8) | byte11;
-    uint16_t com5 = (s->l4info.HeaderLen << 4);
+    uint16_t head_l = (s->l4info.HeaderLen << 4);
     uint16_t flag = s->l4info.Flag;
     uint16_t len = s->l4info.HeaderLen;
     uint16_t prot = s->l3info.protocol;
     
     uint64_t sum = 0;
-    for (int i = 0; i < 16; i += 2) {
-        uint16_t value = (s->l3info.SourceIpv4[i] << 8) | s->l3info.SourceIpv4[i+1]; 
-        sum += value; // add the value to the sum
+    printf("%s\n",s->l3info.SourceIpv4);
+    char* octet = strtok(s->l3info.SourceIpv4, ".");
+    int octet_values[4]; // Array to store integer values of octets
+    int i = 0;
+    while (octet != NULL && i < 4) {
+        octet_values[i] = atoi(octet);
+        octet = strtok(NULL, ".");
+        i++;
     }
-    for (int i = 0; i < 16; i += 2) {
-        uint16_t value = (s->l3info.DesIpv4[i] << 8) | s->l3info.DesIpv4[i+1];
-        sum += value; // add the value to the sum
+    uint16_t k1 = (octet_values[0] << 8) | octet_values[1];
+    uint16_t k2 = (octet_values[2] << 8) | octet_values[3];
+    
+    
+    printf("%s\n",s->l3info.DesIpv4);
+    char* octe = strtok(s->l3info.DesIpv4, ".");
+    int octe_values[4]; // Array to store integer values of octets
+    int j = 0;
+    while (octe != NULL && j < 4) {
+        octe_values[i] = atoi(octe);
+        octe = strtok(NULL, ".");
+        j++;
     }
-    sum += (source_port + dest_port + com1 + com2 + com3 + com4  + flag + len + prot + win)*2 + com5;
-    uint64_t carry = (sum & 0xffff000000000000) >> 48; // extract the carry from the high-order bits
-    sum = (sum & 0x0000ffffffffffff) + carry;
-    uint64_t result = ~sum;
+    uint16_t k3 = (octe_values[0] << 8) | octe_values[1];
+    uint16_t k4 = (octe_values[2] << 8) | octe_values[3];
+    printf("%x %x %x %x\n",k1,k2,k3,k4);
+    sum += source_port + dest_port + com1 + com2 + com3 + com4  + flag + len + prot + win + 0x14;
+
+    printf("%lx\n", sum);
+    uint8_t carry = sum >> 16;
+    uint16_t result = sum;
+    result += carry;
+    printf("%x\n", result);
+    result = ~result;
+    //set s->header[16] to result
+    s->header[16] = result >> 8;
+    s->header[17] = result;
 
     //print com1 to 8
-    printf("%x %x %x %x %x %lx %lx %lx\n", com1, com2, com3, com4, com5, sum, carry, result);
-
+    printf("%x %x %x %x %x %x\n", com1, com2, com3, com4, head_l, result);
 }
 
 int main(int argc , char *argv[])
