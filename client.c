@@ -57,9 +57,8 @@ void myheadercreater(Segment* s){
     uint16_t com2 = (byte6 << 8) | byte7;
     uint16_t com3 = (byte8 << 8) | byte9;
     uint16_t com4 = (byte10 << 8) | byte11;
-    uint16_t head_l = (s->l4info.HeaderLen << 4);
+    uint16_t len = (s->l4info.HeaderLen << 12);
     uint16_t flag = s->l4info.Flag;
-    uint16_t len = s->l4info.HeaderLen;
     uint16_t prot = s->l3info.protocol;
     
     uint64_t sum = 0;
@@ -88,7 +87,7 @@ void myheadercreater(Segment* s){
     uint16_t k4 = (octet_values[2] << 8) | octet_values[3];
     printf("%x %x\n",k3,k4);
 
-    sum += k1+k2+k3+k4+prot+0x1c+ source_port + dest_port + com1 + com2 + com3 + com4  + head_l + flag + win;
+    sum += k1+k2+k3+k4+prot+0x14+ source_port + dest_port + com1 + com2 + com3 + com4  + len + flag + win;
 
     printf("%lx\n", sum);
     uint8_t carry = sum >> 16;
